@@ -1,0 +1,31 @@
+name: Instagram予約投稿
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # 30分ごと(GitHub側の都合で数分〜1時間ほど遅れることがある)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 投稿時刻を過ぎた予約を投稿
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+        run: python3 scripts/publish_queue.py
+      - name: 結果を記録
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add queue
+          git diff --cached --quiet || (git commit -m "投稿結果を記録" && git push)
