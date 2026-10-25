@@ -1,0 +1,24 @@
+name: ビジネスプロフィールの祝日登録
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"   # 毎月1日 9:00(日本時間)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  holidays:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: jpholiday を入れる
+        run: pip install jpholiday
+      - name: 祝日を休業として登録
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GBP_LOCATION_ID: ${{ secrets.GBP_LOCATION_ID }}
+        run: python3 scripts/gbp_holidays.py
