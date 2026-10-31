@@ -8,12 +8,6 @@
  ],
  "videos": [
   {
-   "id": "j3IbonrXoh4",
-   "title": "絶対に行ってはいけない！ヤバい眼科クリニック「3つの特徴」",
-   "theme": "目の病気",
-   "date": "2026-08-12"
-  },
-  {
    "id": "qMP0p1gdvKg",
    "title": "両目同時と片目ずつ、どう選ぶか",
    "theme": "白内障手術",
@@ -110,6 +104,8 @@
    "date": "2026-07-30"
   }
  ],
- "excluded": [],
+ "excluded": [
+  "j3IbonrXoh4"
+ ],
  "pending": {}
 }
