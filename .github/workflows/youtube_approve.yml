@@ -1,0 +1,35 @@
+name: YouTube 掲載の返事を反映
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: youtube
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    # リポジトリの持ち主(院長)のコメントだけ受け付ける
+    if: ${{ !github.event.issue.pull_request && github.event.comment.author_association == 'OWNER' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: コメントを読んで反映
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/youtube_approve.py
+      - name: 記録
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add youtube/videos.json
+          git diff --cached --quiet || (git commit -m "YouTube 掲載の返事を反映" && git pull --rebase && git push)
+      - name: Issue に返事をして閉じる
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/youtube_approve.py --reply
