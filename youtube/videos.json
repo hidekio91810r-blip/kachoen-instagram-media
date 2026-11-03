@@ -107,5 +107,12 @@
  "excluded": [
   "j3IbonrXoh4"
  ],
- "pending": {}
+ "pending": {
+  "TEST_NG_CHECK": {
+   "title": "テスト(架空の動画)",
+   "theme": "白内障手術",
+   "date": "2026-11-03",
+   "issue": 2
+  }
+ }
 }
