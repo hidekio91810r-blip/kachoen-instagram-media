@@ -3,6 +3,7 @@
 youtube/videos.json に無い動画だけが対象。ホームページに載るのは、
 院長が Issue に OK とコメントしたあと(youtube_approve.py)。
 """
+import datetime
 import json
 import os
 import re
@@ -12,7 +13,12 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 CHANNEL_ID = "UCHLfoFl0lMdyW4uYnskO2oA"
-FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id=" + CHANNEL_ID
+FEED_URLS = [
+    "https://www.youtube.com/feeds/videos.xml?channel_id=" + CHANNEL_ID,
+    "https://www.youtube.com/feeds/videos.xml?playlist_id=UU" + CHANNEL_ID[2:],  # アップロード一覧
+]
+# フィードが取れない日が続いたら失敗にして知らせる(それまでは見送りで静かに終える)
+ALERT_DAYS = 7
 DATA_PATH = "youtube/videos.json"
 NS = {
     "a": "http://www.w3.org/2005/Atom",
@@ -33,15 +39,17 @@ DEFAULT_THEME = "目の病気"
 
 
 def fetch_feed():
-    req = urllib.request.Request(FEED_URL, headers={"User-Agent": "Mozilla/5.0"})
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=30) as res:
-                return res.read()
-        except OSError as e:
-            print(f"取得に失敗({attempt + 1}回目): {e}")
-            time.sleep(30)
-    sys.exit("YouTube のフィードを取得できませんでした")
+    """フィードを取る。取れなければ None(YouTube がクラウドからの取得を 404 で断ることがあるため)。"""
+    for url in FEED_URLS:
+        for attempt in range(2):
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as res:
+                    return res.read()
+            except OSError as e:
+                print(f"取得に失敗({url.split('?')[1][:11]} {attempt + 1}回目): {e}")
+                time.sleep(15)
+    return None
 
 
 def parse_feed(xml_bytes):
@@ -118,7 +126,18 @@ def main():
     with open(DATA_PATH, encoding="utf-8") as f:
         data = json.load(f)
     known = {v["id"] for v in data["videos"]} | set(data["excluded"]) | set(data["pending"])
-    new = [v for v in parse_feed(fetch_feed()) if v["id"] not in known]
+    xml = fetch_feed()
+    today = datetime.date.today()
+    if xml is None:
+        since = data.setdefault("feed_failed_since", today.isoformat())
+        save(data)
+        days = (today - datetime.date.fromisoformat(since)).days
+        if days >= ALERT_DAYS:
+            sys.exit(f"YouTube のフィードを {since} から取得できていません({days}日)")
+        print(f"::warning::YouTube のフィードを取得できませんでした。今日は見送ります({since} から)")
+        return
+    data.pop("feed_failed_since", None)
+    new = [v for v in parse_feed(xml) if v["id"] not in known]
     print(f"新しい動画: {len(new)}本")
     for video in reversed(new):
         draft = draft_title(video["title"])
@@ -136,6 +155,10 @@ def main():
             "date": video["date"],
         }
         print(f"Issue #{number}: {video['id']}")
+    save(data)
+
+
+def save(data):
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
         f.write("\n")
